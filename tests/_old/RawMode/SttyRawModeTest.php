@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpTui\Term\Tests\RawMode;
+namespace PhpTui\Term\Tests\_old\RawMode;
 
 use PhpTui\Term\ProcessResult;
 use PhpTui\Term\ProcessRunner\ClosureRunner;

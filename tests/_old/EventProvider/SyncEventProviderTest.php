@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpTui\Term\Tests\EventProvider;
+namespace PhpTui\Term\Tests\_old\EventProvider;
 
 use PhpTui\Term\Event\CodedKeyEvent;
 use PhpTui\Term\EventParser;

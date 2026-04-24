@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpTui\Term\Tests\InformationProvider;
+namespace PhpTui\Term\Tests\_old\InformationProvider;
 
 use Generator;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PhpTui\Term\InformationProvider\SizeFromSttyProvider;
 use PhpTui\Term\ProcessResult;
 use PhpTui\Term\ProcessRunner\ClosureRunner;
 use PhpTui\Term\TerminalInformation\Size;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class SizeFromSttyProviderTest extends TestCase

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpTui\Term\Tests;
+namespace PhpTui\Term\Tests\_old;
 
 use Generator;
 use PhpTui\Term\Event;

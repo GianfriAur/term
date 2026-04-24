@@ -1,12 +1,12 @@
 <?php
 
-namespace PhpTui\Term\Tests\EventProvider;
+namespace PhpTui\Term\Tests\_old\EventProvider;
 
-use PHPUnit\Framework\TestCase;
+use PhpTui\Term\Event\CharKeyEvent;
 use PhpTui\Term\EventProvider\AggregateEventProvider;
 use PhpTui\Term\EventProvider\ArrayEventProvider;
-use PhpTui\Term\Event\CharKeyEvent;
 use PhpTui\Term\KeyModifiers;
+use PHPUnit\Framework\TestCase;
 
 final class AggregateEventProviderTest extends TestCase
 {

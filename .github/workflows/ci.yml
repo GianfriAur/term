@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - feature/ci-crosplatform-test
+      - test/unit-coverage
 
 jobs:
   phpunit:

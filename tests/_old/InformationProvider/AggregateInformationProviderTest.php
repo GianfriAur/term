@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpTui\Term\Tests\InformationProvider;
+namespace PhpTui\Term\Tests\_old\InformationProvider;
 
 use PhpTui\Term\InformationProvider\AggregateInformationProvider;
 use PhpTui\Term\InformationProvider\ClosureInformationProvider;

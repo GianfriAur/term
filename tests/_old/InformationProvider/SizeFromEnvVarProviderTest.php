@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpTui\Term\Tests\InformationProvider;
+namespace PhpTui\Term\Tests\_old\InformationProvider;
 
 use PhpTui\Term\InformationProvider\SizeFromEnvVarProvider;
 use PhpTui\Term\TerminalInformation\Size;

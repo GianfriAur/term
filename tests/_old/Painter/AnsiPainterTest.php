@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpTui\Term\Tests\Painter;
+namespace PhpTui\Term\Tests\_old\Painter;
 
 use PhpTui\Term\Action;
 use PhpTui\Term\Actions;
