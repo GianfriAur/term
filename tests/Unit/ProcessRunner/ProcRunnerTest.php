@@ -7,7 +7,6 @@ namespace PhpTui\Term\Tests\Unit\ProcessRunner;
 use PhpTui\Term\ProcessRunner;
 use PhpTui\Term\ProcessRunner\ProcRunner;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 
 final class ProcRunnerTest extends TestCase
 {
