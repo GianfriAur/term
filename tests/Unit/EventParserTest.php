@@ -27,6 +27,9 @@ final class EventParserTest extends TestCase
      * @dataProvider provideCsiSpecialKeyCode
      * @dataProvider provideCsiModifierKeyCode
      * @dataProvider provideCsiMouse
+     * @dataProvider provideExtraCsiTilde
+     * @dataProvider provideExtraMouse
+     * @dataProvider provideExtraModifiers
      */
     public function testParse(string $line, ?Event $expected, bool $moreInput = false): void
     {
@@ -40,6 +43,71 @@ final class EventParserTest extends TestCase
         }
         self::assertCount(1, $events);
         self::assertEquals($expected, $events[0]);
+    }
+
+    /**
+     * @dataProvider provideRecoverableGarbage
+     */
+    public function testParserRecoversFromMalformedInputAndContinues(string $garbage): void
+    {
+        $parser = EventParser::new();
+        // Malformed bytes followed by a clean ASCII char on the next byte.
+        $parser->advance($garbage . 'z', false);
+
+        $events = $parser->drain();
+
+        self::assertCount(1, $events);
+        self::assertEquals(CharKeyEvent::new('z'), $events[0]);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideRecoverableGarbage(): iterable
+    {
+        yield 'unknown CSI final byte' => ["\x1B[X"];
+        yield 'unknown CSI tilde number' => ["\x1B[10~"];
+        yield 'invalid UTF-8 start byte' => ["\xFF"];
+        yield 'invalid UTF-8 continuation' => ["\xC2\x00"];
+        // 0xC0 0x80 is overlong (codepoint 0) and rejected by mb_check_encoding.
+        yield 'overlong UTF-8 encoding' => ["\xC0\x80"];
+        yield 'normal mouse cb below 32' => ["\x1B[M\x10\x40\x40"];
+        yield 'rxvt mouse missing fields' => ["\x1B[32;30M"];
+        yield 'CSI with semicolon at offset 2' => ["\x1B[;"];
+    }
+
+    public function testCursorPositionWithSingleFieldEmitsNoEvent(): void
+    {
+        $parser = EventParser::new();
+        $parser->advance("\x1B[20R", false);
+
+        self::assertCount(0, $parser->drain());
+    }
+
+    public function testParseAcrossMultipleAdvanceCallsIsBufferedCorrectly(): void
+    {
+        $parser = EventParser::new();
+        $parser->advance("\x1B[", true);
+        self::assertCount(0, $parser->drain());
+
+        $parser->advance('A', false);
+        $events = $parser->drain();
+
+        self::assertCount(1, $events);
+        self::assertEquals(CodedKeyEvent::new(KeyCode::Up), $events[0]);
+    }
+
+    public function testIncompleteUtf8AcrossAdvanceCalls(): void
+    {
+        $parser = EventParser::new();
+        $parser->advance("\xC2", true);
+        self::assertCount(0, $parser->drain());
+
+        $parser->advance("\xA3", false);
+        $events = $parser->drain();
+
+        self::assertCount(1, $events);
+        self::assertEquals(CharKeyEvent::new('£'), $events[0]);
     }
 
     public function testNewFactoryReturnsInstance(): void
@@ -365,5 +433,131 @@ final class EventParserTest extends TestCase
                 modifiers: KeyModifiers::NONE,
             ),
         ];
+    }
+
+    /**
+     * @return Generator<array{0:string,1:?Event,2?:bool}>
+     */
+    public static function provideExtraCsiTilde(): Generator
+    {
+        yield 'F5 via ~' => ["\x1B[15~", FunctionKeyEvent::new(5)];
+        yield 'F6 via ~' => ["\x1B[17~", FunctionKeyEvent::new(6)];
+        yield 'F11 via ~' => ["\x1B[23~", FunctionKeyEvent::new(11)];
+        yield 'F-key range 28-29' => ["\x1B[28~", FunctionKeyEvent::new(13)];
+        yield 'F-key range 31-34' => ["\x1B[31~", FunctionKeyEvent::new(14)];
+    }
+
+    /**
+     * @return Generator<array{0:string,1:?Event,2?:bool}>
+     */
+    public static function provideExtraMouse(): Generator
+    {
+        yield 'SGR Middle button down' => [
+            "\x1B[<1;5;5M",
+            MouseEvent::new(MouseEventKind::Down, MouseButton::Middle, 4, 4, KeyModifiers::NONE),
+        ];
+        yield 'SGR Right button down' => [
+            "\x1B[<2;5;5M",
+            MouseEvent::new(MouseEventKind::Down, MouseButton::Right, 4, 4, KeyModifiers::NONE),
+        ];
+        yield 'SGR Drag Left' => [
+            "\x1B[<32;5;5M",
+            MouseEvent::new(MouseEventKind::Drag, MouseButton::Left, 4, 4, KeyModifiers::NONE),
+        ];
+        yield 'SGR Drag Middle' => [
+            "\x1B[<33;5;5M",
+            MouseEvent::new(MouseEventKind::Drag, MouseButton::Middle, 4, 4, KeyModifiers::NONE),
+        ];
+        yield 'SGR Drag Right' => [
+            "\x1B[<34;5;5M",
+            MouseEvent::new(MouseEventKind::Drag, MouseButton::Right, 4, 4, KeyModifiers::NONE),
+        ];
+        yield 'SGR Moved (drag with no real button)' => [
+            "\x1B[<35;5;5M",
+            MouseEvent::new(MouseEventKind::Moved, MouseButton::None, 4, 4, KeyModifiers::NONE),
+        ];
+        yield 'SGR ScrollUp' => [
+            "\x1B[<64;5;5M",
+            MouseEvent::new(MouseEventKind::ScrollUp, MouseButton::None, 4, 4, KeyModifiers::NONE),
+        ];
+        yield 'SGR ScrollDown' => [
+            "\x1B[<65;5;5M",
+            MouseEvent::new(MouseEventKind::ScrollDown, MouseButton::None, 4, 4, KeyModifiers::NONE),
+        ];
+        yield 'SGR ScrollLeft' => [
+            "\x1B[<66;5;5M",
+            MouseEvent::new(MouseEventKind::ScrollLeft, MouseButton::None, 4, 4, KeyModifiers::NONE),
+        ];
+        yield 'SGR ScrollRight' => [
+            "\x1B[<67;5;5M",
+            MouseEvent::new(MouseEventKind::ScrollRight, MouseButton::None, 4, 4, KeyModifiers::NONE),
+        ];
+        yield 'SGR with SHIFT modifier' => [
+            "\x1B[<4;5;5M",
+            MouseEvent::new(MouseEventKind::Down, MouseButton::Left, 4, 4, KeyModifiers::SHIFT),
+        ];
+        yield 'SGR with ALT modifier' => [
+            "\x1B[<8;5;5M",
+            MouseEvent::new(MouseEventKind::Down, MouseButton::Left, 4, 4, KeyModifiers::ALT),
+        ];
+        // 'm' only converts Down → Up; non-Down kinds (Drag, Scroll…) stay.
+        yield 'SGR Drag with release marker keeps Drag' => [
+            "\x1B[<32;5;5m",
+            MouseEvent::new(MouseEventKind::Drag, MouseButton::Left, 4, 4, KeyModifiers::NONE),
+        ];
+    }
+
+    /**
+     * @return Generator<array{0:string,1:?Event,2?:bool}>
+     */
+    public static function provideExtraModifiers(): Generator
+    {
+        yield 'CSI Repeat kind on Down' => [
+            "\x1B[1;1:2B",
+            CodedKeyEvent::new(KeyCode::Down, KeyModifiers::NONE, KeyEventKind::Repeat),
+        ];
+
+        yield 'Shift Up' => ["\x1B[1;2A", CodedKeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT)];
+        yield 'Shift Right' => ["\x1B[1;2C", CodedKeyEvent::new(KeyCode::Right, KeyModifiers::SHIFT)];
+        yield 'Shift Left' => ["\x1B[1;2D", CodedKeyEvent::new(KeyCode::Left, KeyModifiers::SHIFT)];
+        yield 'Shift End' => ["\x1B[1;2F", CodedKeyEvent::new(KeyCode::End, KeyModifiers::SHIFT)];
+        yield 'Shift Home' => ["\x1B[1;2H", CodedKeyEvent::new(KeyCode::Home, KeyModifiers::SHIFT)];
+
+        // F3 ('R') is intercepted by parseCsiCursorPosition before reaching here.
+        yield 'Shift F2' => ["\x1B[1;2Q", FunctionKeyEvent::new(2, KeyModifiers::SHIFT)];
+        yield 'Shift F4' => ["\x1B[1;2S", FunctionKeyEvent::new(4, KeyModifiers::SHIFT)];
+
+        yield 'modifier section without digits' => [
+            "\x1B[1;A",
+            CodedKeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
+        ];
+
+        yield 'kind sub-field without digits' => [
+            "\x1B[1;2:A",
+            CodedKeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
+        ];
+    }
+
+    /**
+     * @dataProvider provideModifierKeyCodeErrors
+     */
+    public function testParserRecoversFromModifierKeyCodeErrors(string $bad): void
+    {
+        $parser = EventParser::new();
+        $parser->advance($bad . 'z', false);
+
+        $events = $parser->drain();
+
+        self::assertCount(1, $events);
+        self::assertEquals(CharKeyEvent::new('z'), $events[0]);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideModifierKeyCodeErrors(): iterable
+    {
+        yield 'CSI with no separator and cursor letter' => ["\x1B[5A"];
+        yield 'CSI with unknown final byte' => ["\x1B[1;2X"];
     }
 }
